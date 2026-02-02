@@ -51,17 +51,23 @@
 
 ### Сборка из исходников
 
+Основные команды для сборки приложения:
+
 ```bash
-# Клонирование репозитория
-git clone https://github.com/your-repo/win-panel.git
-cd win-panel
+# Обычная сборка (Debug)
+dotnet build
 
-# Сборка Release версии
-dotnet publish -c Release
+# Публикация в один файл (Single-file, ReadyToRun)
+# Это рекомендуемый способ для получения готового EXE
+dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true /p:PublishReadyToRun=true
 
-# EXE файл будет в:
-# bin/Release/net8.0-windows/win-x64/publish/WinPanel.exe
+# Публикация со всеми зависимостями (Self-contained)
+# EXE будет работать даже без установленного .NET на ПК
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
 ```
+
+**EXE файл будет находиться в:**
+`bin/Release/net8.0-windows/win-x64/publish/WinPanel.exe`
 
 ---
 
