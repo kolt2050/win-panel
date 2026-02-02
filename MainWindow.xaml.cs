@@ -17,6 +17,8 @@ namespace WinPanel
         private ShortcutItem? _contextMenuTarget;
         private bool _isVertical = false;
         private double _opacity = 80;
+        private double _scale = 100;
+        private bool _isLoaded = false;
 
         public MainWindow()
         {
@@ -50,6 +52,10 @@ namespace WinPanel
             _isVertical = config.IsVertical;
             ApplyLayout();
             
+            // Restore scale
+            _scale = config.Scale;
+            ApplyScale();
+            
             // Load shortcuts
             foreach (var path in config.ShortcutPaths)
             {
@@ -58,6 +64,8 @@ namespace WinPanel
                     AddShortcut(path);
                 }
             }
+            
+            _isLoaded = true;
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -261,6 +269,8 @@ namespace WinPanel
 
         private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (!_isLoaded) return; // Prevent reset during menu initialization
+            
             _opacity = e.NewValue;
             UpdateOpacityVisual();
             
@@ -282,6 +292,32 @@ namespace WinPanel
             }
             
             SaveConfig();
+        }
+
+        private void ResizeGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+        {
+            // Calculate new scale based on drag delta
+            double scaleDelta = (e.HorizontalChange + e.VerticalChange) / 200.0;
+            _scale = Math.Clamp(_scale + scaleDelta * 100, 50, 300);
+            ApplyScale();
+            SaveConfig();
+        }
+
+        private void ResetScale_Click(object sender, RoutedEventArgs e)
+        {
+            _scale = 100;
+            ApplyScale();
+            SaveConfig();
+        }
+
+        private void ApplyScale()
+        {
+            if (PanelScale != null)
+            {
+                var scaleValue = _scale / 100.0;
+                PanelScale.ScaleX = scaleValue;
+                PanelScale.ScaleY = scaleValue;
+            }
         }
 
         private void UpdateOpacityVisual()
@@ -324,15 +360,19 @@ namespace WinPanel
                         // Check for opacity slider
                         if (menuItem.Items.Count == 1 && menuItem.Items[0] is StackPanel panel)
                         {
-                            foreach (var child in panel.Children)
+                            var header = menuItem.Header?.ToString() ?? "";
+                            if (header.Contains("Прозрачность"))
                             {
-                                if (child is Slider slider)
+                                foreach (var child in panel.Children)
                                 {
-                                    slider.Value = _opacity;
-                                }
-                                if (child is TextBlock textBlock)
-                                {
-                                    textBlock.Text = $"{(int)_opacity}%";
+                                    if (child is Slider slider)
+                                    {
+                                        slider.Value = _opacity;
+                                    }
+                                    if (child is TextBlock textBlock)
+                                    {
+                                        textBlock.Text = $"{(int)_opacity}%";
+                                    }
                                 }
                             }
                         }
@@ -354,6 +394,7 @@ namespace WinPanel
                 WindowLeft = Left,
                 WindowTop = Top,
                 Opacity = _opacity,
+                Scale = _scale,
                 IsVertical = _isVertical,
                 ShortcutPaths = paths
             });
