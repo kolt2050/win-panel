@@ -108,13 +108,13 @@ namespace WinPanel
                             double offsetX = button.ActualWidth / 2;
                             double offsetY = button.ActualHeight / 2;
                             
-                            _adorner = new DragAdorner(MainBorder, button, 0.7, new Point(offsetX, offsetY));
+                            _adorner = new DragAdorner(MainBorder, button, 0.7, new Point(offsetX, offsetY), new Size(button.ActualWidth, button.ActualHeight));
                             _adorner.UpdatePosition(mousePos);
                             layer.Add(_adorner);
                         }
 
-                        // Dim button
-                        button.Opacity = 0.2;
+                        // Dim button removed per user request
+                        // button.Opacity = 0.2;
 
                         try
                         {
@@ -128,7 +128,7 @@ namespace WinPanel
                                 layer?.Remove(_adorner);
                                 _adorner = null;
                             }
-                            button.Opacity = 1.0;
+                            // button.Opacity = 1.0;
                         }
                         e.Handled = true;
                     }
@@ -142,7 +142,45 @@ namespace WinPanel
 
         private void Window_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(typeof(ShortcutItem)))
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
+
+                // Create custom adorner for file drop if not already present
+                if (_adorner == null)
+                {
+                    var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    if (files != null && files.Length > 0)
+                    {
+                        var path = files[0];
+                        var icon = Services.IconExtractor.GetIcon(path);
+                        if (icon != null)
+                        {
+                            var image = new System.Windows.Controls.Image
+                            {
+                                Source = icon,
+                                Width = 48,
+                                Height = 48,
+                                Opacity = 0.8
+                            };
+                            
+                            // Measure and Arrange to ensure it renders in VisualBrush
+                            image.Measure(new Size(48, 48));
+                            image.Arrange(new Rect(0, 0, 48, 48));
+
+                            var layer = AdornerLayer.GetAdornerLayer(MainBorder);
+                            if (layer != null)
+                            {
+                                var mousePos = e.GetPosition(MainBorder);
+                                _adorner = new DragAdorner(MainBorder, image, 1.0, new Point(24, 24), new Size(48, 48));
+                                _adorner.UpdatePosition(mousePos);
+                                layer.Add(_adorner);
+                            }
+                        }
+                    }
+                }
+            }
+            else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
             {
                 e.Effects = DragDropEffects.Move;
             }
@@ -155,9 +193,11 @@ namespace WinPanel
 
         private void Window_DragLeave(object sender, DragEventArgs e)
         {
-             if (_adorner != null)
+             if (_adorner != null && e.Data.GetDataPresent(DataFormats.FileDrop))
              {
-                 // Optional: hide adorner if leaves window, but usually handled by Drop/cleanup
+                 var layer = AdornerLayer.GetAdornerLayer(MainBorder);
+                 layer?.Remove(_adorner);
+                 _adorner = null;
              }
         }
 
@@ -168,7 +208,20 @@ namespace WinPanel
                 var point = e.GetPosition(MainBorder);
                 _adorner.UpdatePosition(point);
             }
-            // No collection modification here - pure visual drag
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Copy | DragDropEffects.Link;
+            }
+            else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
+            {
+                e.Effects = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+
             e.Handled = true;
         }
 
@@ -227,15 +280,6 @@ namespace WinPanel
                     int oldIndex = _shortcuts.IndexOf(droppedData);
                     if (oldIndex != -1)
                     {
-                        // If we move item from 0 to 2 (insert at 2).
-                        // List: A(0), B(1), C(2). Drop at C. Insert at 2.
-                        // Remove A. [B, C]. Insert at 2 -> [B, C, A].
-                        // If we move item from 2 to 0.
-                        // List: A(0), B(1), C(2). Drop at A. Insert at 0.
-                        // Remove C. [A, B]. Insert at 0 -> [C, A, B].
-                        
-                        // Correction: If oldIndex < insertIndex, we need to decrement insertIndex
-                        // because removal shifts indices down.
                         if (oldIndex < insertIndex)
                         {
                             insertIndex--;
@@ -245,6 +289,14 @@ namespace WinPanel
                         SaveConfig();
                     }
                 }
+            }
+            
+            // Cleanup adorner
+            if (_adorner != null)
+            {
+                var layer = AdornerLayer.GetAdornerLayer(MainBorder);
+                layer?.Remove(_adorner);
+                _adorner = null;
             }
         }
 

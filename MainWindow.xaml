@@ -10,11 +10,6 @@
         SizeToContent="WidthAndHeight"
         ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
-        AllowDrop="True"
-        DragEnter="Window_DragEnter"
-        DragOver="Window_DragOver"
-        DragLeave="Window_DragLeave"
-        Drop="Window_Drop"
         Loaded="Window_Loaded">
     
     <Grid>
@@ -23,7 +18,12 @@
         <Border x:Name="MainBorder" CornerRadius="12" Padding="0" Margin="20"
                 MinWidth="60" MinHeight="60"
                 BorderBrush="#40FFFFFF" BorderThickness="1"
-                MouseRightButtonUp="Panel_RightClick">
+                MouseRightButtonUp="Panel_RightClick"
+                AllowDrop="True"
+                DragEnter="Window_DragEnter"
+                DragOver="Window_DragOver"
+                Drop="Window_Drop"
+                DragLeave="Window_DragLeave">
             
             <Border.Background>
                 <SolidColorBrush Color="#CC1E1E2E"/>
