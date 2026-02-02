@@ -38,13 +38,28 @@
             </Border.Effect>
             
             <Grid>
-                <!-- Shortcuts Panel -->
-                <ItemsControl x:Name="ShortcutsPanel" Margin="3,4">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel x:Name="ShortcutsStack" Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
+                <StackPanel x:Name="MainLayout" Orientation="Horizontal">
+                    <!-- Handle area for context menu and dragging -->
+                    <Border x:Name="DragHandle" 
+                            Background="Transparent" 
+                            CornerRadius="8"
+                            MouseRightButtonUp="Panel_RightClick"
+                            Margin="4">
+                        <!-- Visual Grip - More visible version -->
+                        <Canvas x:Name="GripVisual" Width="12" Height="12" Opacity="0.75" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Ellipse Fill="White" Width="3" Height="3" Canvas.Left="1.5" Canvas.Top="4.5"/>
+                            <Ellipse Fill="White" Width="3" Height="3" Canvas.Left="5.5" Canvas.Top="4.5"/>
+                            <Ellipse Fill="White" Width="3" Height="3" Canvas.Left="9.5" Canvas.Top="4.5"/>
+                        </Canvas>
+                    </Border>
+
+                    <!-- Shortcuts Panel -->
+                    <ItemsControl x:Name="ShortcutsPanel" Margin="0,4">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel x:Name="ShortcutsStack" Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Button Click="Shortcut_Click"
@@ -64,6 +79,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </StackPanel>
 
                 <!-- Resize Grip (inside Border to scale with it) -->
                 <Thumb x:Name="ResizeGrip" 

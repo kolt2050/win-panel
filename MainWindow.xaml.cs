@@ -446,8 +446,25 @@ namespace WinPanel
 
         private void ApplyLayout()
         {
-            // Update ItemsPanel orientation
-            ShortcutsPanel.ItemsPanel = CreateItemsPanelTemplate(_isVertical ? Orientation.Vertical : Orientation.Horizontal);
+            // Update Main and ItemsPanel orientation
+            var orientation = _isVertical ? Orientation.Vertical : Orientation.Horizontal;
+            MainLayout.Orientation = orientation;
+            ShortcutsPanel.ItemsPanel = CreateItemsPanelTemplate(orientation);
+            
+            // Adjust DragHandle size/position hints if needed
+            if (_isVertical)
+            {
+                DragHandle.Height = 15;
+                DragHandle.Width = double.NaN; // Auto
+                GripVisual.LayoutTransform = null;
+            }
+            else
+            {
+                DragHandle.Width = 15;
+                DragHandle.Height = double.NaN; // Auto
+                // Rotate grip for horizontal layout
+                GripVisual.LayoutTransform = new RotateTransform(90);
+            }
         }
 
         private ItemsPanelTemplate CreateItemsPanelTemplate(Orientation orientation)
