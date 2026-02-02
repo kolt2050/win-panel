@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Media;
 using WinPanel.Models;
 using WinPanel.Services;
 
@@ -16,9 +18,12 @@ namespace WinPanel
         private readonly ConfigService _configService = new();
         private ShortcutItem? _contextMenuTarget;
         private bool _isVertical = false;
-        private double _opacity = 80;
+        private double _opacity = 45;
         private double _scale = 100;
         private bool _isLoaded = false;
+        private Point _dragStartPoint;
+        private DragAdorner? _adorner;
+        private bool _isDragging = false;
 
         public MainWindow()
         {
@@ -71,20 +76,82 @@ namespace WinPanel
             _isLoaded = true;
         }
 
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void Shortcut_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            _dragStartPoint = e.GetPosition(null);
+        }
+
+        private void Shortcut_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging) return;
+
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                DragMove();
-                SaveConfig();
+                Point position = e.GetPosition(null);
+                if (Math.Abs(position.X - _dragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(position.Y - _dragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    var button = sender as Button;
+                    var shortcut = button?.DataContext as ShortcutItem;
+                    
+                    if (button == null || shortcut == null) return;
+
+                    _isDragging = true;
+                    try
+                    {
+                        // Create Adorner
+                        var layer = AdornerLayer.GetAdornerLayer(MainBorder);
+                        if (layer != null)
+                        {
+                            var mousePos = e.GetPosition(MainBorder);
+                            // Calculate center offset based on actual button size
+                            double offsetX = button.ActualWidth / 2;
+                            double offsetY = button.ActualHeight / 2;
+                            
+                            _adorner = new DragAdorner(MainBorder, button, 0.7, new Point(offsetX, offsetY));
+                            _adorner.UpdatePosition(mousePos);
+                            layer.Add(_adorner);
+                        }
+
+                        // Dim button
+                        button.Opacity = 0.2;
+
+                        try
+                        {
+                            DragDrop.DoDragDrop(button, shortcut, DragDropEffects.Move);
+                        }
+                        finally
+                        {
+                            // Cleanup after drag (always runs)
+                            if (_adorner != null)
+                            {
+                                layer?.Remove(_adorner);
+                                _adorner = null;
+                            }
+                            button.Opacity = 1.0;
+                        }
+                        e.Handled = true;
+                    }
+                    finally
+                    {
+                        _isDragging = false;
+                    }
+                }
             }
         }
+
+        private ShortcutItem? _placeholder;
 
         private void Window_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 e.Effects = DragDropEffects.Copy;
+                if (_placeholder == null)
+                {
+                    _placeholder = new ShortcutItem { IsPlaceholder = true };
+                    _shortcuts.Add(_placeholder);
+                }
             }
             else
             {
@@ -93,28 +160,111 @@ namespace WinPanel
             e.Handled = true;
         }
 
+        private void Window_DragLeave(object sender, DragEventArgs e)
+        {
+            if (_placeholder != null)
+            {
+                _shortcuts.Remove(_placeholder);
+                _placeholder = null;
+            }
+        }
+
+        private void Window_DragOver(object sender, DragEventArgs e)
+        {
+            if (_adorner != null)
+            {
+                var point = e.GetPosition(MainBorder);
+                _adorner.UpdatePosition(point);
+            }
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop) && _placeholder != null)
+            {
+                UpdatePlaceholderPosition(e.GetPosition(ShortcutsPanel));
+            }
+        }
+
+        private void Shortcut_DragOver(object sender, DragEventArgs e)
+        {
+             if (_adorner != null)
+             {
+                 var point = e.GetPosition(MainBorder);
+                 _adorner.UpdatePosition(point);
+             }
+
+             if (e.Data.GetDataPresent(DataFormats.FileDrop) && _placeholder != null)
+             {
+                 UpdatePlaceholderPosition(e.GetPosition(ShortcutsPanel));
+             }
+             else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
+             {
+                 var droppedData = e.Data.GetData(typeof(ShortcutItem)) as ShortcutItem;
+                 var target = ((Button)sender).DataContext as ShortcutItem;
+
+                 if (droppedData != null && target != null && droppedData != target && !target.IsPlaceholder)
+                 {
+                     int oldIndex = _shortcuts.IndexOf(droppedData);
+                     int newIndex = _shortcuts.IndexOf(target);
+
+                     if (oldIndex != -1 && newIndex != -1)
+                     {
+                         _shortcuts.Move(oldIndex, newIndex);
+                     }
+                 }
+             }
+        }
+
+        private void UpdatePlaceholderPosition(Point mousePos)
+        {
+            if (_placeholder == null) return;
+
+            int newIndex = _shortcuts.Count - 1;
+            
+            // Find closest index based on mouse X
+            // Simple approximation: Iterate items and find where mouseX < ItemCenter
+            // Or use checking against buttons
+            
+            // Since we can't easily iterate UI containers from here without helper, 
+            // we will use the collection order and assume standard width if possible,
+            // OR finding the button under mouse (sender in Shortcut_DragOver).
+            // But Window_DragOver does not have sender as Button.
+            
+            // Let's rely on standard width calculation for now
+            // Button width approx 54 (48 + 3+3 margin)
+            double itemWidth = 56;
+            int estimatedIndex = (int)(mousePos.X / itemWidth);
+            if (estimatedIndex < 0) estimatedIndex = 0;
+            if (estimatedIndex >= _shortcuts.Count) estimatedIndex = _shortcuts.Count - 1;
+
+            int currentIndex = _shortcuts.IndexOf(_placeholder);
+            if (currentIndex != estimatedIndex)
+            {
+                _shortcuts.Move(currentIndex, estimatedIndex);
+            }
+        }
+
         private void Window_Drop(object sender, DragEventArgs e)
         {
+            int insertIndex = -1;
+            if (_placeholder != null)
+            {
+                insertIndex = _shortcuts.IndexOf(_placeholder);
+                _shortcuts.Remove(_placeholder);
+                _placeholder = null;
+            }
+
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 foreach (var file in files)
                 {
-                    var ext = Path.GetExtension(file).ToLower();
-                    if (ext == ".exe" || ext == ".lnk" || ext == ".url")
+                    if (File.Exists(file) || Directory.Exists(file))
                     {
-                        // Check if already added
-                        bool exists = false;
-                        foreach (var s in _shortcuts)
+                        if (insertIndex != -1)
                         {
-                            if (s.Path.Equals(file, StringComparison.OrdinalIgnoreCase))
-                            {
-                                exists = true;
-                                break;
-                            }
+                            AddShortcut(file, insertIndex);
+                            insertIndex++; 
                         }
-                        
-                        if (!exists)
+                        else
                         {
                             AddShortcut(file);
                         }
@@ -124,17 +274,52 @@ namespace WinPanel
             }
         }
 
-        private void AddShortcut(string path)
+        // Keep Shortcut_Drop for internal reorder finalization
+        private void Shortcut_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                // Let window handle file drop
+                e.Handled = false; 
+                return;
+            }
+
+            if (e.Data.GetDataPresent(typeof(ShortcutItem)))
+            {
+                SaveConfig();
+                e.Handled = true;
+            }
+        }
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                DragMove();
+                SaveConfig();
+            }
+        }
+
+        private void AddShortcut(string path, int index = -1)
         {
             var icon = IconExtractor.GetIcon(path);
             var name = Path.GetFileNameWithoutExtension(path);
             
-            _shortcuts.Add(new ShortcutItem
+            var item = new ShortcutItem
             {
                 Name = name,
                 Path = path,
                 Icon = icon
-            });
+            };
+
+            if (index >= 0 && index <= _shortcuts.Count)
+            {
+                _shortcuts.Insert(index, item);
+            }
+            else
+            {
+                _shortcuts.Add(item);
+            }
         }
 
         private void Shortcut_Click(object sender, RoutedEventArgs e)
@@ -279,7 +464,7 @@ namespace WinPanel
 
         public static readonly DependencyProperty PanelOpacityProperty =
             DependencyProperty.Register("PanelOpacity", typeof(double), typeof(MainWindow), 
-                new PropertyMetadata(80.0, OnPanelOpacityChanged));
+                new PropertyMetadata(45.0, OnPanelOpacityChanged));
 
         private static void OnPanelOpacityChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -352,10 +537,35 @@ namespace WinPanel
                                 }
                             }
                         }
-                        
 
+                        if (menuItem.Name == "MenuAutostart")
+                        {
+                            menuItem.IsChecked = SystemService.IsAutostartEnabled();
+                        }
                     }
                 }
+            }
+        }
+
+        private void MenuAutostart_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item)
+            {
+                SystemService.SetAutostart(item.IsChecked);
+            }
+        }
+
+        private void MenuUninstall_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "Вы действительно хотите удалить приложение и все его настройки?\nПриложение будет закрыто и удалено.",
+                "Полное удаление",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SystemService.FullUninstall();
             }
         }
 

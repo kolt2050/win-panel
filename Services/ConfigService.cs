@@ -9,7 +9,7 @@ namespace WinPanel.Services
     {
         public double WindowLeft { get; set; } = -1;
         public double WindowTop { get; set; } = -1;
-        public double Opacity { get; set; } = 80;
+        public double Opacity { get; set; } = 45;
         public double Scale { get; set; } = 100;
         public bool IsVertical { get; set; } = false;
         public List<string> ShortcutPaths { get; set; } = new();

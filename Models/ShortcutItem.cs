@@ -7,5 +7,6 @@ namespace WinPanel.Models
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public ImageSource? Icon { get; set; }
+        public bool IsPlaceholder { get; set; } = false;
     }
 }

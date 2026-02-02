@@ -12,6 +12,8 @@
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         AllowDrop="True"
         DragEnter="Window_DragEnter"
+        DragOver="Window_DragOver"
+        DragLeave="Window_DragLeave"
         Drop="Window_Drop"
         Loaded="Window_Loaded">
     
@@ -19,6 +21,7 @@
         <!-- Main Border with Glass-like appearance -->
         <!-- Added Margin to allow space for DropShadow and proper anti-aliasing -->
         <Border x:Name="MainBorder" CornerRadius="12" Padding="0" Margin="20"
+                MinWidth="60" MinHeight="60"
                 BorderBrush="#40FFFFFF" BorderThickness="1"
                 MouseRightButtonUp="Panel_RightClick">
             
@@ -44,10 +47,31 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Button Style="{StaticResource ShortcutButtonStyle}"
-                                    Click="Shortcut_Click"
+                            <Button Click="Shortcut_Click"
                                     MouseRightButtonUp="Shortcut_RightClick"
+                                    PreviewMouseLeftButtonDown="Shortcut_PreviewMouseLeftButtonDown"
+                                    PreviewMouseMove="Shortcut_PreviewMouseMove"
+                                    Drop="Shortcut_Drop"
+                                    DragOver="Shortcut_DragOver"
+                                    AllowDrop="True"
                                     Tag="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ShortcutButtonStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPlaceholder}" Value="True">
+                                                <Setter Property="Width" Value="10"/>
+                                                <Setter Property="Margin" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Width="2" Background="White" CornerRadius="1" Opacity="0.8" HorizontalAlignment="Center"/>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
                                 <Image Source="{Binding Icon}" Width="32" Height="32" RenderOptions.BitmapScalingMode="HighQuality"/>
                             </Button>
                         </DataTemplate>
@@ -87,7 +111,11 @@
         
         <!-- Panel Context Menu -->
         <ContextMenu x:Key="PanelContextMenu" Opened="PanelContextMenu_Opened">
-            <MenuItem Header="📐 Ориентация">
+            <MenuItem Header="� Полное удаление" Click="MenuUninstall_Click" Foreground="#FF5555"/>
+            <Separator/>
+            <MenuItem Header="🚀 Автозапуск" x:Name="MenuAutostart" IsCheckable="True" Click="MenuAutostart_Click"/>
+            <Separator/>
+            <MenuItem Header="�📐 Ориентация">
                 <MenuItem x:Name="MenuHorizontal" Header="↔ Горизонтально" Click="Layout_Horizontal" IsCheckable="True" IsChecked="True"/>
                 <MenuItem x:Name="MenuVertical" Header="↕ Вертикально" Click="Layout_Vertical" IsCheckable="True"/>
             </MenuItem>
