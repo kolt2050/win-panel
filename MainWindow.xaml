@@ -51,9 +51,6 @@
                                     MouseRightButtonUp="Shortcut_RightClick"
                                     PreviewMouseLeftButtonDown="Shortcut_PreviewMouseLeftButtonDown"
                                     PreviewMouseMove="Shortcut_PreviewMouseMove"
-                                    Drop="Shortcut_Drop"
-                                    DragOver="Shortcut_DragOver"
-                                    AllowDrop="True"
                                     Tag="{Binding}">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource ShortcutButtonStyle}">

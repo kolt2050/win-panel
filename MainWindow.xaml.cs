@@ -181,64 +181,170 @@ namespace WinPanel
             {
                 UpdatePlaceholderPosition(e.GetPosition(ShortcutsPanel));
             }
-        }
-
-        private void Shortcut_DragOver(object sender, DragEventArgs e)
-        {
-             if (_adorner != null)
-             {
-                 var point = e.GetPosition(MainBorder);
-                 _adorner.UpdatePosition(point);
-             }
-
-             if (e.Data.GetDataPresent(DataFormats.FileDrop) && _placeholder != null)
-             {
-                 UpdatePlaceholderPosition(e.GetPosition(ShortcutsPanel));
-             }
-             else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
-             {
-                 var droppedData = e.Data.GetData(typeof(ShortcutItem)) as ShortcutItem;
-                 var target = ((Button)sender).DataContext as ShortcutItem;
-
-                 if (droppedData != null && target != null && droppedData != target && !target.IsPlaceholder)
-                 {
-                     int oldIndex = _shortcuts.IndexOf(droppedData);
-                     int newIndex = _shortcuts.IndexOf(target);
-
-                     if (oldIndex != -1 && newIndex != -1)
-                     {
-                         _shortcuts.Move(oldIndex, newIndex);
-                     }
-                 }
-             }
+            else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
+            {
+                // Internal reordering
+                var droppedData = e.Data.GetData(typeof(ShortcutItem)) as ShortcutItem;
+                if (droppedData != null)
+                {
+                   UpdatePlaceholderPosition(e.GetPosition(ShortcutsPanel)); 
+                   // Reusing the same positioning logic works because UpdatePlaceholderPosition
+                   // moves the item at 'currentIndex' to 'estimatedIndex'.
+                   // For internal drag, 'droppedData' is already in the list, so 
+                   // IndexOf(droppedData) will return the current index, 
+                   // effectively moving it to the new mouse position.
+                   
+                   // However, UpdatePlaceholderPosition relies on _placeholder.
+                   // So we need a unified method or adapting logic.
+                   // Let's adapt UpdatePlaceholderPosition to take an item to move.
+                   UpdateItemPosition(droppedData, e.GetPosition(ShortcutsPanel));
+                }
+            }
         }
 
         private void UpdatePlaceholderPosition(Point mousePos)
         {
             if (_placeholder == null) return;
+            UpdateItemPosition(_placeholder, mousePos);
+        }
 
-            int newIndex = _shortcuts.Count - 1;
-            
-            // Find closest index based on mouse X
-            // Simple approximation: Iterate items and find where mouseX < ItemCenter
-            // Or use checking against buttons
-            
-            // Since we can't easily iterate UI containers from here without helper, 
-            // we will use the collection order and assume standard width if possible,
-            // OR finding the button under mouse (sender in Shortcut_DragOver).
-            // But Window_DragOver does not have sender as Button.
-            
-            // Let's rely on standard width calculation for now
-            // Button width approx 54 (48 + 3+3 margin)
-            double itemWidth = 56;
-            int estimatedIndex = (int)(mousePos.X / itemWidth);
-            if (estimatedIndex < 0) estimatedIndex = 0;
-            if (estimatedIndex >= _shortcuts.Count) estimatedIndex = _shortcuts.Count - 1;
+        private void UpdateItemPosition(ShortcutItem item, Point mousePos)
+        {
+            int targetIndex = _shortcuts.Count - 1; 
+            int visualIndex = 0;
 
-            int currentIndex = _shortcuts.IndexOf(_placeholder);
-            if (currentIndex != estimatedIndex)
+            for (int i = 0; i < _shortcuts.Count; i++)
             {
-                _shortcuts.Move(currentIndex, estimatedIndex);
+                var current = _shortcuts[i];
+                if (current == item) continue;
+
+                var container = ShortcutsPanel.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null)
+                {
+                    // Transform bounds to ShortcutsPanel coordinates
+                    var transform = container.TransformToAncestor(ShortcutsPanel);
+                    var topLeft = transform.Transform(new Point(0, 0));
+                    var center = _isVertical 
+                        ? topLeft.Y + (container.ActualHeight / 2)
+                        : topLeft.X + (container.ActualWidth / 2);
+
+                    var mouseValue = _isVertical ? mousePos.Y : mousePos.X;
+
+                    if (mouseValue < center)
+                    {
+                        targetIndex = visualIndex; // Insert before this item
+                        break;
+                    }
+                }
+                visualIndex++;
+            }
+            
+            // Adjust target index if we are moving "forward" in the list 
+            // relative to the original full list indices, accounting for the item's removal
+            // However, ObservableCollection.Move handles indices naturally.
+            // We just need to map visualIndex (index in list without item) to real index.
+            
+            // Example: [A, B, Item, C]
+            // Visuals: [A, B, C]
+            // Mouse before C (Index 2 in visual list).
+            // Target = 2.
+            // Move(2, 2) -> No change?
+            // Item is at 2. We want it before C (which is at 3).
+            // If we Move(2, 3), result [A, B, C, Item].
+            // If we Move(2, 2), result [A, B, Item, C].
+            
+            // Wait, visual loop gave us index 2 (C).
+            // C is at real index 3.
+            // visualIndex 0->A(0). 1->B(1). 2->C(3).
+            // So if targetIndex is 2.
+            // We want to insert at 3?
+            
+            // Let's refine the loop strategy:
+            // We want to find the real index 'k' such that we insert *before* 'k'.
+            // If we break at C (real index 3), we want to be at 3.
+            // Move(2, 3)?
+            
+            // Let's rely on mapping.
+            // List `[A, B, Item, C]`.
+            // i=0(A). Mouse<A? No.
+            // i=1(B). Mouse<B? No.
+            // i=2(Item). Skip.
+            // i=3(C). Mouse<C? Yes. Break.
+            // Target Loop Index `i` = 3.
+            // Result: Insert before 3.
+            // Move(2, 3).
+            
+            // What if Mouse > C?
+            // Loop finishes. `targetIndex` init to?
+            // Use `targetIndex = -1` start.
+            // If -1, append.
+            // Append means index = Count - 1?
+            
+            // Let's restart logic using REAL indices.
+            int insertionIndex = _shortcuts.Count - 1;
+            bool found = false;
+
+            for (int i = 0; i < _shortcuts.Count; i++)
+            {
+                var current = _shortcuts[i];
+                if (current == item) continue;
+
+                var container = ShortcutsPanel.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null)
+                {
+                    var transform = container.TransformToAncestor(ShortcutsPanel);
+                    var topLeft = transform.Transform(new Point(0, 0));
+                    var center = _isVertical 
+                        ? topLeft.Y + (container.ActualHeight / 2)
+                        : topLeft.X + (container.ActualWidth / 2);
+                    
+                    var mouseValue = _isVertical ? mousePos.Y : mousePos.X;
+
+                    if (mouseValue < center)
+                    {
+                        insertionIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Correction for Move behavior
+            // We want to arrive at 'insertionIndex'. 
+            // If item is current at 'oldIndex'.
+            // If oldIndex < insertionIndex, the item shifts others down.
+            // e.g. [A, item, B]. Move item to after B (index 2).
+            // Loop: A(0) no. B(2) < center? No.
+            // End Loop. insertionIndex = default (Count-1 = 2).
+            // Move(1, 2) -> [A, B, item]. Correct.
+            
+            // [A, item, B]. Mouse < (A).
+            // Loop: A(0) < center? Yes. Break. insertionIndex = 0.
+            // Move(1, 0) -> [item, A, B]. Correct.
+
+            // [A, item, B]. Mouse < (B).
+            // Loop: A(0) no. B(2) < center? Yes. Break. insertionIndex = 2.
+            // Move(1, 2) -> [A, B, item]? NO!
+            // If we insert before B (index 2), we want [A, item, B].
+            // But Move(1, 2) places it at 2.
+            // Wait, inserting "Before B" means Index should be 2?
+            // Original: 0:A, 1:Item, 2:B.
+            // If we remove Item: 0:A, 1:B.
+            // Insert at 1 -> [A, Item, B].
+            // So we want result index 1.
+            
+            // But Loop gave us i=2.
+            // So if insertionIndex > oldIndex, decrement?
+            
+            int currentIndex = _shortcuts.IndexOf(item);
+            if (found && insertionIndex > currentIndex)
+            {
+                insertionIndex--;
+            }
+            
+            if (currentIndex != insertionIndex)
+            {
+                _shortcuts.Move(currentIndex, insertionIndex);
             }
         }
 
@@ -272,20 +378,9 @@ namespace WinPanel
                 }
                 SaveConfig();
             }
-        }
-
-        // Keep Shortcut_Drop for internal reorder finalization
-        private void Shortcut_Drop(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            else if (e.Data.GetDataPresent(typeof(ShortcutItem)))
             {
-                // Let window handle file drop
-                e.Handled = false; 
-                return;
-            }
-
-            if (e.Data.GetDataPresent(typeof(ShortcutItem)))
-            {
+                // Internal reorder finalization
                 SaveConfig();
                 e.Handled = true;
             }
