@@ -28,6 +28,9 @@ namespace WinPanel
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Enable acrylic blur effect - DISABLED to fix corner artifacts
+            // WindowEffect.EnableBlur(this);
+            
             // Load saved configuration
             var config = _configService.Load();
             
@@ -45,8 +48,8 @@ namespace WinPanel
             }
             
             // Restore opacity
-            _opacity = config.Opacity;
-            UpdateOpacityVisual();
+            // Restore opacity
+            PanelOpacity = config.Opacity;
             
             // Restore layout orientation
             _isVertical = config.IsVertical;
@@ -169,6 +172,7 @@ namespace WinPanel
             
             var contextMenu = (ContextMenu)FindResource("PanelContextMenu");
             contextMenu.PlacementTarget = MainBorder;
+            contextMenu.DataContext = this;
             contextMenu.IsOpen = true;
             e.Handled = true;
         }
@@ -267,31 +271,26 @@ namespace WinPanel
             Close();
         }
 
-        private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        public double PanelOpacity
         {
-            if (!_isLoaded) return; // Prevent reset during menu initialization
+            get { return (double)GetValue(PanelOpacityProperty); }
+            set { SetValue(PanelOpacityProperty, value); }
+        }
+
+        public static readonly DependencyProperty PanelOpacityProperty =
+            DependencyProperty.Register("PanelOpacity", typeof(double), typeof(MainWindow), 
+                new PropertyMetadata(80.0, OnPanelOpacityChanged));
+
+        private static void OnPanelOpacityChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var window = (MainWindow)d;
+            window._opacity = (double)e.NewValue;
+            window.UpdateOpacityVisual();
             
-            _opacity = e.NewValue;
-            UpdateOpacityVisual();
-            
-            // Update text in the MenuItem
-            if (sender is Slider slider)
+            if (window._isLoaded)
             {
-                var parent = slider.Parent as StackPanel;
-                if (parent != null)
-                {
-                    foreach (var child in parent.Children)
-                    {
-                        if (child is TextBlock textBlock)
-                        {
-                            textBlock.Text = $"{(int)_opacity}%";
-                            break;
-                        }
-                    }
-                }
+                window.SaveConfig();
             }
-            
-            SaveConfig();
         }
 
         private void ResizeGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
@@ -323,12 +322,9 @@ namespace WinPanel
         private void UpdateOpacityVisual()
         {
             var opacityValue = _opacity / 100.0;
-            if (MainBorder != null)
-            {
                 var color = System.Windows.Media.Color.FromArgb(
                     (byte)(opacityValue * 255), 30, 30, 46);
                 MainBorder.Background = new System.Windows.Media.SolidColorBrush(color);
-            }
         }
 
         private void PanelContextMenu_Opened(object sender, RoutedEventArgs e)
@@ -357,25 +353,7 @@ namespace WinPanel
                             }
                         }
                         
-                        // Check for opacity slider
-                        if (menuItem.Items.Count == 1 && menuItem.Items[0] is StackPanel panel)
-                        {
-                            var header = menuItem.Header?.ToString() ?? "";
-                            if (header.Contains("Прозрачность"))
-                            {
-                                foreach (var child in panel.Children)
-                                {
-                                    if (child is Slider slider)
-                                    {
-                                        slider.Value = _opacity;
-                                    }
-                                    if (child is TextBlock textBlock)
-                                    {
-                                        textBlock.Text = $"{(int)_opacity}%";
-                                    }
-                                }
-                            }
-                        }
+
                     }
                 }
             }

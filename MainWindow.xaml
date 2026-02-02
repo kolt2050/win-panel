@@ -16,51 +16,64 @@
         Loaded="Window_Loaded">
     
     <Grid>
-        <Border x:Name="MainBorder" Background="#CC1E1E2E" CornerRadius="12" Padding="8,4" 
-                BorderBrush="#404050" BorderThickness="1"
+        <!-- Main Border with Glass-like appearance -->
+        <!-- Added Margin to allow space for DropShadow and proper anti-aliasing -->
+        <Border x:Name="MainBorder" CornerRadius="12" Padding="0" Margin="20"
+                BorderBrush="#40FFFFFF" BorderThickness="1"
                 MouseRightButtonUp="Panel_RightClick">
+            
+            <Border.Background>
+                <SolidColorBrush Color="#CC1E1E2E"/>
+            </Border.Background>
             
             <Border.LayoutTransform>
                 <ScaleTransform x:Name="PanelScale" ScaleX="1" ScaleY="1"/>
             </Border.LayoutTransform>
             
-            <!-- Shortcuts Panel -->
-            <ItemsControl x:Name="ShortcutsPanel">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel x:Name="ShortcutsStack" Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Button Style="{StaticResource ShortcutButtonStyle}"
-                                Click="Shortcut_Click"
-                                MouseRightButtonUp="Shortcut_RightClick"
-                                Tag="{Binding}">
-                            <Image Source="{Binding Icon}" Width="32" Height="32" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        </Button>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.5" Color="Black"/>
+            </Border.Effect>
+            
+            <Grid>
+                <!-- Shortcuts Panel -->
+                <ItemsControl x:Name="ShortcutsPanel" Margin="3,4">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel x:Name="ShortcutsStack" Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource ShortcutButtonStyle}"
+                                    Click="Shortcut_Click"
+                                    MouseRightButtonUp="Shortcut_RightClick"
+                                    Tag="{Binding}">
+                                <Image Source="{Binding Icon}" Width="32" Height="32" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Resize Grip (inside Border to scale with it) -->
+                <Thumb x:Name="ResizeGrip" 
+                       Width="16" Height="16"
+                       HorizontalAlignment="Right" 
+                       VerticalAlignment="Bottom"
+                       Margin="0,0,2,2"
+                       Cursor="SizeNWSE"
+                       DragDelta="ResizeGrip_DragDelta"
+                       Opacity="0.5">
+                    <Thumb.Template>
+                        <ControlTemplate TargetType="Thumb">
+                            <Grid Background="Transparent">
+                                <Path Data="M 0,12 L 12,0 M 4,12 L 12,4 M 8,12 L 12,8" 
+                                      Stroke="#888888" StrokeThickness="1.5"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Thumb.Template>
+                </Thumb>
+            </Grid>
         </Border>
-        
-        <!-- Resize Grip (bottom-right corner) -->
-        <Thumb x:Name="ResizeGrip" 
-               Width="16" Height="16"
-               HorizontalAlignment="Right" 
-               VerticalAlignment="Bottom"
-               Cursor="SizeNWSE"
-               DragDelta="ResizeGrip_DragDelta"
-               Opacity="0.5">
-            <Thumb.Template>
-                <ControlTemplate TargetType="Thumb">
-                    <Grid Background="Transparent">
-                        <Path Data="M 0,12 L 12,0 M 4,12 L 12,4 M 8,12 L 12,8" 
-                              Stroke="#888888" StrokeThickness="1.5"/>
-                    </Grid>
-                </ControlTemplate>
-            </Thumb.Template>
-        </Thumb>
     </Grid>
     
     <!-- Context Menu for Shortcuts -->
@@ -81,9 +94,9 @@
             <MenuItem Header="🔍 Сбросить масштаб" Click="ResetScale_Click"/>
             <MenuItem Header="👁 Прозрачность">
                 <StackPanel Orientation="Horizontal" Margin="4">
-                    <Slider Width="150" Minimum="20" Maximum="100" Value="80"
-                            ValueChanged="OpacitySlider_ValueChanged"/>
-                    <TextBlock Text="80%" Foreground="#888888" 
+                    <Slider Width="150" Minimum="20" Maximum="100" 
+                            Value="{Binding PanelOpacity, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding PanelOpacity, StringFormat='{}{0:0}%'}" Foreground="#888888" 
                                FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 </StackPanel>
             </MenuItem>
