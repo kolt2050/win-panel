@@ -1,0 +1,39 @@
+.agent
+
+# Build results
+bin/
+obj/
+publish/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.rsuser
+
+# Rider
+.idea/
+
+# NuGet
+*.nupkg
+packages/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build scripts (optional)
+convert-icon.ps1
