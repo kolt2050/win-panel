@@ -18,15 +18,22 @@ namespace WinPanel.Services
     public class ConfigService
     {
         private readonly string _configPath;
+        public string ShortcutsDirectory { get; }
 
         public ConfigService()
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var configDir = Path.Combine(appData, "WinPanel");
+            ShortcutsDirectory = Path.Combine(configDir, "Shortcuts");
             
             if (!Directory.Exists(configDir))
             {
                 Directory.CreateDirectory(configDir);
+            }
+
+            if (!Directory.Exists(ShortcutsDirectory))
+            {
+                Directory.CreateDirectory(ShortcutsDirectory);
             }
             
             _configPath = Path.Combine(configDir, "config.json");

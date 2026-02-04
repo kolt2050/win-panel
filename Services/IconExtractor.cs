@@ -43,16 +43,6 @@ namespace WinPanel.Services
             {
                 var ext = Path.GetExtension(path).ToLower();
                 
-                // For .lnk files, resolve the target
-                if (ext == ".lnk")
-                {
-                    var targetPath = ResolveLnkTarget(path);
-                    if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
-                    {
-                        path = targetPath;
-                    }
-                }
-                
                 // For .url files, try to get associated icon
                 if (ext == ".url")
                 {
@@ -60,7 +50,26 @@ namespace WinPanel.Services
                 }
                 
                 // Extract icon using Shell API
-                return ExtractIconFromFile(path);
+                var icon = ExtractIconFromFile(path);
+                
+                // Fallback to System.Drawing if Shell API fails
+                if (icon == null && File.Exists(path))
+                {
+                    try
+                    {
+                        using var sysIcon = System.Drawing.Icon.ExtractAssociatedIcon(path);
+                        if (sysIcon != null)
+                        {
+                            return Imaging.CreateBitmapSourceFromHIcon(
+                                sysIcon.Handle,
+                                Int32Rect.Empty,
+                                BitmapSizeOptions.FromEmptyOptions());
+                        }
+                    }
+                    catch { }
+                }
+
+                return icon;
             }
             catch
             {
@@ -68,66 +77,7 @@ namespace WinPanel.Services
             }
         }
 
-        private static string? ResolveLnkTarget(string lnkPath)
-        {
-            try
-            {
-                // Read .lnk file header to find target path
-                // Using simplified binary reading approach
-                using var fs = new FileStream(lnkPath, FileMode.Open, FileAccess.Read);
-                using var br = new BinaryReader(fs);
-                
-                // Skip header (76 bytes minimum)
-                fs.Position = 0x4C; // Skip to shell link header
-                
-                // Read flags
-                fs.Position = 0x14;
-                var flags = br.ReadUInt32();
-                
-                bool hasLinkTargetIdList = (flags & 0x01) != 0;
-                bool hasLinkInfo = (flags & 0x02) != 0;
-                
-                fs.Position = 0x4C; // End of header
-                
-                // Skip LinkTargetIDList if present
-                if (hasLinkTargetIdList)
-                {
-                    var idListSize = br.ReadUInt16();
-                    fs.Position += idListSize;
-                }
-                
-                // Read LinkInfo if present
-                if (hasLinkInfo)
-                {
-                    var linkInfoStart = fs.Position;
-                    var linkInfoSize = br.ReadUInt32();
-                    var linkInfoHeaderSize = br.ReadUInt32();
-                    var linkInfoFlags = br.ReadUInt32();
-                    
-                    var volumeIdOffset = br.ReadUInt32();
-                    var localBasePathOffset = br.ReadUInt32();
-                    
-                    if (localBasePathOffset > 0)
-                    {
-                        fs.Position = linkInfoStart + localBasePathOffset;
-                        var pathBytes = new List<byte>();
-                        byte b;
-                        while ((b = br.ReadByte()) != 0)
-                        {
-                            pathBytes.Add(b);
-                        }
-                        return Encoding.Default.GetString(pathBytes.ToArray());
-                    }
-                }
-                
-                return null;
-            }
-            catch
-            {
-                // Fallback: try SHGetFileInfo on the .lnk itself
-                return null;
-            }
-        }
+
 
         private static ImageSource? ExtractIconFromFile(string filePath)
         {

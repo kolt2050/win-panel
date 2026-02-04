@@ -154,6 +154,12 @@ namespace WinPanel
                     {
                         var path = files[0];
                         var icon = Services.IconExtractor.GetIcon(path);
+                        
+                        if (icon == null)
+                        {
+                            icon = Application.Current.FindResource("DefaultFileIcon") as ImageSource;
+                        }
+
                         if (icon != null)
                         {
                             var image = new System.Windows.Controls.Image
@@ -311,7 +317,44 @@ namespace WinPanel
 
         private void AddShortcut(string path, int index = -1)
         {
+            // Copy .lnk and .url files to our managed directory
+            var ext = Path.GetExtension(path).ToLower();
+            if (ext == ".lnk" || ext == ".url")
+            {
+                try 
+                {
+                    var shortcutsDir = _configService.ShortcutsDirectory;
+                    var fileName = Path.GetFileName(path);
+                    var newPath = Path.Combine(shortcutsDir, fileName);
+                    
+                    // Handle duplicate names by appending a guid fragment if needed
+                    if (File.Exists(newPath) && newPath != path)
+                    {
+                        var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+                        var uniqueName = $"{nameWithoutExt}_{Guid.NewGuid().ToString().Substring(0, 8)}{ext}";
+                        newPath = Path.Combine(shortcutsDir, uniqueName);
+                    }
+
+                    if (path != newPath)
+                    {
+                        File.Copy(path, newPath, true);
+                        path = newPath;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Failed to copy, continue with original path but warn?
+                    // For now silent fallback to original path
+                }
+            }
+
             var icon = IconExtractor.GetIcon(path);
+            if (icon == null)
+            {
+                // Try to get default icon from resources
+                icon = Application.Current.FindResource("DefaultFileIcon") as ImageSource;
+            }
+
             var name = Path.GetFileNameWithoutExtension(path);
             
             var item = new ShortcutItem

@@ -29,5 +29,17 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Application.Resources>
+        <DrawingImage x:Key="DefaultFileIcon">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Brush="#DDDDDD">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M6,2 C5.44772,2 5,2.44772 5,3 V29 C5,29.5523 5.44772,30 6,30 H26 C26.5523,30 27,29.5523 27,29 V10 L20,2 H6 Z M20,10 V3 L26,10 H20 Z"/>
+                    </GeometryDrawing.Geometry>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#AAAAAA" Thickness="1"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+        </Application.Resources>
 </Application>
