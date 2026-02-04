@@ -43,31 +43,22 @@
 - Windows 10/11 (x64)
 - Для сборки: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-### Установка
+### Установка и запуск
 
-1. Скачайте `WinPanel.exe` из [Releases](../../releases)
-2. Запустите — панель появится в верхней части экрана
-3. Готово! Начните перетаскивать ярлыки программ на панель
+Так как проект не распространяется в виде готовых бинарных файлов, его необходимо собрать самостоятельно.
 
-### Сборка из исходников
+1. **Сборка проекта**
+   Откройте терминал в папке с проектом и выполните команду:
+   ```bash
+   dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+   ```
 
-Основные команды для сборки приложения:
+2. **Запуск**
+   После успешной сборки запустите файл:
+   `bin\Release\net8.0-windows\win-x64\publish\WinPanel.exe`
 
-```bash
-# Обычная сборка (Debug)
-dotnet build
-
-# Публикация в один файл (Single-file, ReadyToRun)
-# Это рекомендуемый способ для получения готового EXE
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true /p:PublishReadyToRun=true
-
-# Публикация со всеми зависимостями (Self-contained)
-# EXE будет работать даже без установленного .NET на ПК
-dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
-```
-
-**EXE файл будет находиться в:**
-`bin/Release/net8.0-windows/win-x64/publish/WinPanel.exe`
+3. **Готово!**
+   Панель появится в верхней части экрана. Можете начинать перетаскивать на неё ярлыки.
 
 ---
 
