@@ -310,7 +310,20 @@ namespace WinPanel
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
+                var initialLeft = Left;
+                var initialTop = Top;
+                
+                // Check if we clicked on the DragHandle
+                bool isHandle = IsDescendantOf(e.OriginalSource as DependencyObject, DragHandle);
+
                 DragMove();
+                
+                // If it was a click on handles (no movement)
+                if (isHandle && Math.Abs(Left - initialLeft) < 1 && Math.Abs(Top - initialTop) < 1)
+                {
+                    OpenPanelContextMenu();
+                }
+
                 SaveConfig();
             }
         }
@@ -394,6 +407,16 @@ namespace WinPanel
             }
         }
 
+        private bool IsDescendantOf(DependencyObject node, DependencyObject parent)
+        {
+            while (node != null)
+            {
+                if (node == parent) return true;
+                node = VisualTreeHelper.GetParent(node);
+            }
+            return false;
+        }
+
         private void Panel_RightClick(object sender, MouseButtonEventArgs e)
         {
             // Only show panel menu if not clicking on a shortcut button
@@ -404,14 +427,19 @@ namespace WinPanel
                 {
                     return; // Clicked on a button, don't show panel menu
                 }
-                source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+                source = VisualTreeHelper.GetParent(source);
             }
             
+            OpenPanelContextMenu();
+            e.Handled = true;
+        }
+
+        private void OpenPanelContextMenu()
+        {
             var contextMenu = (ContextMenu)FindResource("PanelContextMenu");
             contextMenu.PlacementTarget = MainBorder;
             contextMenu.DataContext = this;
             contextMenu.IsOpen = true;
-            e.Handled = true;
         }
 
         private void LaunchShortcut(ShortcutItem shortcut)
