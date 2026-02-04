@@ -108,6 +108,7 @@
         <ContextMenu x:Key="ShortcutContextMenu">
             <MenuItem Header="🚀 Запустить" Click="ContextMenu_Launch"/>
             <MenuItem Header="📂 Открыть расположение" Click="ContextMenu_OpenLocation"/>
+            <MenuItem Header="ℹ Свойства" Click="ContextMenu_Properties"/>
             <Separator/>
             <MenuItem Header="❌ Удалить" Click="ContextMenu_Delete"/>
         </ContextMenu>
@@ -131,6 +132,8 @@
                                FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 </StackPanel>
             </MenuItem>
+            <Separator/>
+            <MenuItem Header="❓ Справка" Click="Menu_Help"/>
             <Separator/>
             <MenuItem Header="❌ Закрыть" Click="Menu_Close"/>
         </ContextMenu>

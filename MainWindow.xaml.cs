@@ -464,6 +464,17 @@ namespace WinPanel
             }
         }
 
+        private void ContextMenu_Properties(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuTarget != null)
+            {
+                if (!SystemService.ShowFileProperties(_contextMenuTarget.Path))
+                {
+                    MessageBox.Show("Не удалось открыть свойства файла.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private void ContextMenu_Delete(object sender, RoutedEventArgs e)
         {
             if (_contextMenuTarget != null)
@@ -518,6 +529,12 @@ namespace WinPanel
             template.VisualTree = factory;
             template.Seal();
             return template;
+        }
+
+        private void Menu_Help(object sender, RoutedEventArgs e)
+        {
+            var helpWindow = new HelpWindow();
+            helpWindow.Show();
         }
 
         private void Menu_Close(object sender, RoutedEventArgs e)
