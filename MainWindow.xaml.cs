@@ -16,6 +16,7 @@ namespace WinPanel
     {
         private readonly ObservableCollection<ShortcutItem> _shortcuts = new();
         private readonly ConfigService _configService = new();
+        private readonly GammaService _gammaService = new();
         private ShortcutItem? _contextMenuTarget;
         private bool _isVertical = false;
         private double _opacity = 45;
@@ -24,11 +25,46 @@ namespace WinPanel
         private Point _dragStartPoint;
         private DragAdorner? _adorner;
         private bool _isDragging = false;
+        private bool _isUpdatingBrightness = false;
 
         public MainWindow()
         {
             InitializeComponent();
             ShortcutsPanel.ItemsSource = _shortcuts;
+            InitializeBrightness();
+        }
+
+        private void InitializeBrightness()
+        {
+            if (_gammaService.IsAvailable())
+            {
+                _isUpdatingBrightness = true;
+                BrightnessSlider.Value = _gammaService.GetBrightness();
+                BrightnessValueText.Text = $"{(int)BrightnessSlider.Value}%";
+                _isUpdatingBrightness = false;
+            }
+        }
+
+        private void BrightnessButton_Click(object sender, RoutedEventArgs e)
+        {
+            BrightnessPopup.IsOpen = !BrightnessPopup.IsOpen;
+        }
+
+        private void BrightnessSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isUpdatingBrightness || BrightnessValueText == null) return;
+            
+            int brightness = (int)BrightnessSlider.Value;
+            BrightnessValueText.Text = $"{brightness}%";
+            
+            try
+            {
+                _gammaService.SetBrightness(brightness);
+            }
+            catch
+            {
+                // Ignore errors silently
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -532,6 +568,16 @@ namespace WinPanel
             var orientation = _isVertical ? Orientation.Vertical : Orientation.Horizontal;
             MainLayout.Orientation = orientation;
             ShortcutsPanel.ItemsPanel = CreateItemsPanelTemplate(orientation);
+            
+            // Update brightness popup placement based on orientation
+            if (_isVertical)
+            {
+                BrightnessPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Left;
+            }
+            else
+            {
+                BrightnessPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            }
             
             // Adjust DragHandle size/position hints if needed
             if (_isVertical)
