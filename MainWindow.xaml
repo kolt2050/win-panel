@@ -80,71 +80,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                    <!-- Brightness Control Button -->
-                    <StackPanel x:Name="BrightnessControl" Orientation="Horizontal" Margin="4" VerticalAlignment="Center">
-                        <Button x:Name="BrightnessButton" 
-                                Click="BrightnessButton_Click"
-                                Width="40" Height="40"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                ToolTip="Яркость экрана">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" 
-                                            CornerRadius="8"
-                                            x:Name="ButtonBorder">
-                                        <TextBlock Text="☀" 
-                                                   FontSize="20" 
-                                                   Foreground="#FFCC00"
-                                                   HorizontalAlignment="Center" 
-                                                   VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="ButtonBorder" Property="Background" Value="#40FFFFFF"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="ButtonBorder" Property="Background" Value="#60FFFFFF"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                        
-                        <!-- Brightness Popup -->
-                        <Popup x:Name="BrightnessPopup" 
-                               PlacementTarget="{Binding ElementName=BrightnessButton}"
-                               Placement="Bottom"
-                               StaysOpen="False"
-                               AllowsTransparency="True">
-                            <Border Background="#E0202030" 
-                                    CornerRadius="8" 
-                                    Padding="12"
-                                    BorderBrush="#40FFFFFF" 
-                                    BorderThickness="1">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.5"/>
-                                </Border.Effect>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🔅" FontSize="14" Foreground="#888888" VerticalAlignment="Center"/>
-                                    <Slider x:Name="BrightnessSlider" 
-                                            Width="150" 
-                                            Minimum="10" Maximum="100" 
-                                            Value="100"
-                                            VerticalAlignment="Center"
-                                            Margin="8,0"
-                                            ValueChanged="BrightnessSlider_ValueChanged"/>
-                                    <TextBlock x:Name="BrightnessValueText" 
-                                               Text="100%" 
-                                               FontSize="12" 
-                                               Foreground="White" 
-                                               VerticalAlignment="Center"
-                                               Width="35"/>
-                                </StackPanel>
-                            </Border>
-                        </Popup>
-                    </StackPanel>
             </StackPanel>
 
                 <!-- Resize Grip (inside Border to scale with it) -->
@@ -154,7 +89,9 @@
                        VerticalAlignment="Bottom"
                        Margin="0,0,2,2"
                        Cursor="SizeNWSE"
+                       DragStarted="ResizeGrip_DragStarted"
                        DragDelta="ResizeGrip_DragDelta"
+                       DragCompleted="ResizeGrip_DragCompleted"
                        Opacity="0.5">
                     <Thumb.Template>
                         <ControlTemplate TargetType="Thumb">
@@ -190,6 +127,22 @@
                 <MenuItem x:Name="MenuVertical" Header="↕ Вертикально" Click="Layout_Vertical" IsCheckable="True"/>
             </MenuItem>
             <MenuItem Header="🔍 Сбросить масштаб" Click="ResetScale_Click"/>
+            <MenuItem Header="☀ Яркость">
+                <StackPanel Orientation="Horizontal" Margin="4">
+                    <TextBlock Text="🔅" FontSize="14" Foreground="#888888" VerticalAlignment="Center"/>
+                    <Slider x:Name="BrightnessSlider" 
+                            Width="150" 
+                            Minimum="10" Maximum="100" 
+                            VerticalAlignment="Center"
+                            Margin="8,0"
+                            Value="{Binding CurrentBrightness, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding CurrentBrightness, RelativeSource={RelativeSource AncestorType=Window}, StringFormat='{}{0}%'}" 
+                               FontSize="12" 
+                               Foreground="White" 
+                               VerticalAlignment="Center"
+                               Width="35"/>
+                </StackPanel>
+            </MenuItem>
             <MenuItem Header="👁 Прозрачность">
                 <StackPanel Orientation="Horizontal" Margin="4">
                     <Slider Width="150" Minimum="20" Maximum="100" 

@@ -12,6 +12,7 @@ namespace WinPanel.Services
         public double Opacity { get; set; } = 45;
         public double Scale { get; set; } = 100;
         public bool IsVertical { get; set; } = false;
+        public int Brightness { get; set; } = 100;
         public List<string> ShortcutPaths { get; set; } = new();
     }
 

@@ -25,53 +25,52 @@ namespace WinPanel
         private Point _dragStartPoint;
         private DragAdorner? _adorner;
         private bool _isDragging = false;
-        private bool _isUpdatingBrightness = false;
+        private double _initialDragScale;
+        private Point _initialDragScreenPoint;
 
         public MainWindow()
         {
             InitializeComponent();
             ShortcutsPanel.ItemsSource = _shortcuts;
-            InitializeBrightness();
         }
 
-        private void InitializeBrightness()
+        private void InitializeBrightness(int initialBrightness)
         {
             if (_gammaService.IsAvailable())
             {
-                _isUpdatingBrightness = true;
-                BrightnessSlider.Value = _gammaService.GetBrightness();
-                BrightnessValueText.Text = $"{(int)BrightnessSlider.Value}%";
-                _isUpdatingBrightness = false;
+                CurrentBrightness = initialBrightness;
             }
         }
 
-        private void BrightnessButton_Click(object sender, RoutedEventArgs e)
+        public int CurrentBrightness
         {
-            BrightnessPopup.IsOpen = !BrightnessPopup.IsOpen;
+            get { return (int)GetValue(CurrentBrightnessProperty); }
+            set { SetValue(CurrentBrightnessProperty, value); }
         }
 
-        private void BrightnessSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        public static readonly DependencyProperty CurrentBrightnessProperty =
+            DependencyProperty.Register("CurrentBrightness", typeof(int), typeof(MainWindow),
+                new PropertyMetadata(100, OnBrightnessChanged));
+
+        private static void OnBrightnessChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (_isUpdatingBrightness || BrightnessValueText == null) return;
-            
-            int brightness = (int)BrightnessSlider.Value;
-            BrightnessValueText.Text = $"{brightness}%";
-            
+            var window = (MainWindow)d;
+            var brightness = (int)e.NewValue;
             try
             {
-                _gammaService.SetBrightness(brightness);
+                window._gammaService.SetBrightness(brightness);
             }
-            catch
+            catch { }
+
+            if (window._isLoaded)
             {
-                // Ignore errors silently
+                window.SaveConfig();
             }
         }
+
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Enable acrylic blur effect - DISABLED to fix corner artifacts
-            // WindowEffect.EnableBlur(this);
-            
             // Load saved configuration
             var config = _configService.Load();
             
@@ -108,6 +107,9 @@ namespace WinPanel
                     AddShortcut(path);
                 }
             }
+
+            // Initialize brightness from config or current system value
+            InitializeBrightness(config.Brightness > 0 ? config.Brightness : _gammaService.GetBrightness());
             
             _isLoaded = true;
         }
@@ -569,16 +571,6 @@ namespace WinPanel
             MainLayout.Orientation = orientation;
             ShortcutsPanel.ItemsPanel = CreateItemsPanelTemplate(orientation);
             
-            // Update brightness popup placement based on orientation
-            if (_isVertical)
-            {
-                BrightnessPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Left;
-            }
-            else
-            {
-                BrightnessPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            }
-            
             // Adjust DragHandle size/position hints if needed
             if (_isVertical)
             {
@@ -638,15 +630,40 @@ namespace WinPanel
             }
         }
 
-        private void ResizeGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+        private void ResizeGrip_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
         {
-            // Calculate new scale based on drag delta
-            double scaleDelta = (e.HorizontalChange + e.VerticalChange) / 200.0;
-            _scale = Math.Clamp(_scale + scaleDelta * 100, 50, 300);
-            ApplyScale();
-            SaveConfig();
+            _initialDragScale = _scale;
+            // Capture initial mouse position in screen coordinates
+            _initialDragScreenPoint = ResizeGrip.PointToScreen(new Point(e.HorizontalOffset, e.VerticalOffset));
         }
 
+        private void ResizeGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+        {
+            // Get current mouse position in screen coordinates
+            // We use the Thumb itself to call PointToScreen, which is safe during drag
+            try
+            {
+                // We use Mouse.GetPosition(this) to find where the mouse is relative to the window
+                // then convert that to screen coordinates for an absolute delta.
+                Point currentPos = PointToScreen(Mouse.GetPosition(this));
+                
+                double deltaX = currentPos.X - _initialDragScreenPoint.X;
+                double deltaY = currentPos.Y - _initialDragScreenPoint.Y;
+
+                // Total change in scale (1px movement = 1% scale change is a good default)
+                // We sum X and Y movement for a diagonal feel.
+                double totalDelta = (deltaX + deltaY) / 2.0;
+                
+                _scale = Math.Clamp(_initialDragScale + totalDelta, 50, 300);
+                ApplyScale();
+            }
+            catch { }
+        }
+
+        private void ResizeGrip_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            SaveConfig();
+        }
         private void ResetScale_Click(object sender, RoutedEventArgs e)
         {
             _scale = 100;
@@ -744,6 +761,7 @@ namespace WinPanel
                 Opacity = _opacity,
                 Scale = _scale,
                 IsVertical = _isVertical,
+                Brightness = CurrentBrightness,
                 ShortcutPaths = paths
             });
         }
